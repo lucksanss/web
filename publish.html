@@ -732,7 +732,23 @@
 <!-- Toast -->
 <div class="toast" id="toast">post published successfully</div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyB1D16K-kPJkKLCPGhkwyw6OSDLAa-NRp4",
+    authDomain: "lucksan-web.firebaseapp.com",
+    projectId: "lucksan-web",
+    storageBucket: "lucksan-web.firebasestorage.app",
+    messagingSenderId: "30092358090",
+    appId: "1:30092358090:web:7829ef7d32168992db9f33"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.firestore();
+
   function toggleTag(el) {
     el.classList.toggle('active');
   }
@@ -743,17 +759,37 @@
     }
   }
 
-  function handlePublish() {
+  async function handlePublish() {
     const title = document.getElementById('postTitle').value.trim();
     const content = document.getElementById('postContent').value.trim();
+    const category = document.getElementById('postCategory').value.trim();
+    const tags = Array.from(document.querySelectorAll('#tagRow .tag-chip.active')).map(chip => chip.textContent.trim());
+
     if (!title || !content) {
       document.getElementById('postTitle').style.borderColor = title ? '' : 'rgba(224,48,48,0.7)';
       document.getElementById('postContent').style.borderColor = content ? '' : 'rgba(224,48,48,0.7)';
       return;
     }
+
+    try {
+      await db.collection('posts').add({
+        title,
+        content,
+        category: category || 'Other',
+        tags,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (error) {
+      alert('Failed to publish post. Check Firebase rules and try again.');
+      return;
+    }
+
     const toast = document.getElementById('toast');
     toast.classList.add('show');
-    setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    setTimeout(() => {
+      toast.classList.remove('show');
+      window.location.href = 'index.html';
+    }, 1000);
   }
 </script>
 </body>

@@ -478,7 +478,23 @@
 
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
 <script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyB1D16K-kPJkKLCPGhkwyw6OSDLAa-NRp4",
+    authDomain: "lucksan-web.firebaseapp.com",
+    projectId: "lucksan-web",
+    storageBucket: "lucksan-web.firebasestorage.app",
+    messagingSenderId: "30092358090",
+    appId: "1:30092358090:web:7829ef7d32168992db9f33"
+  };
+
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  const db = firebase.firestore();
+
   const posts = [
     {
       tag: "Life", tagClass: "tag-blue",
@@ -577,23 +593,100 @@
       card.style.display = (category === 'all' || card.dataset.category === category) ? '' : 'none';
     });
   }
+
+  const tagClassMap = {
+    Life: 'tag-blue',
+    Tech: 'tag-red',
+    Books: 'tag-yellow'
+  };
+
+  function escapeHtml(value) {
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function toParagraphs(text) {
+    return text
+      .split(/\n+/)
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => `<p>${escapeHtml(line)}</p>`)
+      .join('');
+  }
+
+  async function getCustomPosts() {
+    try {
+      const snap = await db.collection('posts').orderBy('createdAt', 'desc').limit(30).get();
+      return snap.docs.map(doc => {
+        const data = doc.data() || {};
+        return {
+          title: data.title || 'Untitled',
+          content: data.content || '',
+          category: data.category || 'Other',
+          tags: Array.isArray(data.tags) ? data.tags : [],
+          createdAt: data.createdAt && data.createdAt.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString()
+        };
+      });
+    } catch (e) {
+      console.error('Failed to load posts from Firestore', e);
+      return [];
+    }
+  }
+
+  async function injectCustomPosts() {
+    const grid = document.getElementById('postsGrid');
+    if (!grid) return;
+
+    const customPosts = await getCustomPosts();
+    customPosts.slice(0, 30).forEach((item) => {
+      const dateText = new Date(item.createdAt || Date.now()).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      const category = item.category || 'Other';
+      const tagClass = tagClassMap[category] || 'tag-blue';
+      const words = (item.content || '').trim().split(/\s+/).filter(Boolean).length;
+      const read = `${Math.max(1, Math.ceil(words / 200))} min read`;
+      const lead = (item.content || '').trim().slice(0, 180);
+
+      posts.push({
+        tag: category,
+        tagClass,
+        date: dateText,
+        read,
+        protocol: 'Community',
+        authorImg: 'IMG1',
+        title: item.title || 'Untitled',
+        lead: lead || 'No preview available.',
+        body: toParagraphs(item.content || '')
+      });
+
+      const postIndex = posts.length - 1;
+      const card = document.createElement('div');
+      card.className = 'post-card';
+      card.dataset.category = category;
+      card.onclick = () => openPost(postIndex);
+      card.innerHTML = `
+        <div class="post-card-body">
+          <span class="post-tag ${tagClass}">${escapeHtml(category)}</span>
+          <h3 class="post-card-title">${escapeHtml(item.title || 'Untitled')}</h3>
+          <p class="post-card-desc">${escapeHtml(lead || 'No preview available.')}</p>
+          <div class="post-meta">
+            <span>${escapeHtml(dateText)}</span>
+            <span>${escapeHtml(read)}</span>
+          </div>
+        </div>
+      `;
+      grid.prepend(card);
+    });
+  }
+
+  injectCustomPosts();
 </script>
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyB1D16K-kPJkKLCPGhkwyw6OSDLAa-NRp4",
-  authDomain: "lucksan-web.firebaseapp.com",
-  projectId: "lucksan-web",
-  storageBucket: "lucksan-web.firebasestorage.app",
-  messagingSenderId: "30092358090",
-  appId: "1:30092358090:web:7829ef7d32168992db9f33"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
 </body>
 </html>
